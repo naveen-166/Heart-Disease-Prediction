@@ -1,14 +1,28 @@
-import streamlit as st
+import os
 import numpy as np
 import joblib
+import streamlit as st
 
-# Load saved models
-model_paths = {
-    "Logistic Regression": "Training\Models\Logistic_Regression.joblib",
-    "Random Forest": "Training\Models\Random_Forest.joblib",
-    "XGBoost": "Training\Models\XGBoost.joblib"
-}
-models = {name: joblib.load(path) for name, path in model_paths.items()}
+# Helper function to load models safely
+def load_models():
+    model_paths = {
+        "Logistic Regression": os.path.join(os.getcwd(), "Training", "Models", "Logistic_Regression.joblib"),
+        "Random Forest": os.path.join(os.getcwd(), "Training", "Models", "Random_Forest.joblib"),
+        "XGBoost": os.path.join(os.getcwd(), "Training", "Models", "XGBoost.joblib"),
+    }
+
+    models = {}
+    for name, path in model_paths.items():
+        try:
+            models[name] = joblib.load(path)
+        except FileNotFoundError:
+            st.error(f"Model file not found: {path}")
+        except Exception as e:
+            st.error(f"Error loading {name}: {e}")
+    return models
+
+# Load models
+models = load_models()
 
 # Streamlit app
 st.title("Heart Attack Prediction App")
@@ -31,12 +45,19 @@ thall = st.selectbox("Thalassemia (0 = Null, 1 = Fixed Defect, 2 = Normal, 3 = R
 
 # Prediction button
 if st.button("Predict"):
-    # Prepare the input data for the model
-    input_data = np.array([[age, sex, cp, trtbps, chol, fbs, restecg, thalachh, exng, oldpeak, slp, caa, thall]])
-    
-    # Make predictions using all three models
-    st.subheader("Prediction Results")
-    for name, model in models.items():
-        prediction = model.predict(input_data)[0]
-        result = "Heart Attack Risk" if prediction == 1 else "No Heart Attack Risk"
-        st.write(f"{name}: **{result}**")
+    # Check if models are loaded
+    if not models:
+        st.error("No models loaded. Please check the model files.")
+    else:
+        # Prepare the input data for the model
+        input_data = np.array([[age, sex, cp, trtbps, chol, fbs, restecg, thalachh, exng, oldpeak, slp, caa, thall]])
+        
+        # Display prediction results
+        st.subheader("Prediction Results")
+        for name, model in models.items():
+            try:
+                prediction = model.predict(input_data)[0]
+                result = "Heart Attack Risk" if prediction == 1 else "No Heart Attack Risk"
+                st.write(f"{name}: **{result}**")
+            except Exception as e:
+                st.error(f"Error making prediction with {name}: {e}")
